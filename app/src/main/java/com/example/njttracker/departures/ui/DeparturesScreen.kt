@@ -166,14 +166,16 @@ fun DeparturesScreenPreview() {
                             15L * departureIndex
                         )
                         val lineName = lines.random()
+                        val timeString = SimpleDateFormat.getTimeInstance(SimpleDateFormat.SHORT)
+                            .format(Date(time))
                         DepartureState(
                             trainId = lineId,
                                        lineName = lineName,
                                        lineColor = "#FF0000",
                                        destination = "${lineName}Town",
-                                       time = SimpleDateFormat
-                                           .getTimeInstance(SimpleDateFormat.SHORT)
-                                           .format(Date(time)),
+                                       scheduledTime = timeString,
+                                       time = timeString,
+                                       isDelayed = false,
                                        track = (1..23).random().toString(),
                                        trackConfidence = TrackConfidence.entries.toTypedArray()
                                            .random(),

@@ -17,13 +17,16 @@ data class Departure(
     val destination: String,
     val trackConfidence: TrackConfidence,
     val track: String?,
+    val scheduledTime: Long,
     val time: Long,
+    val delay: Int,
     val occupancy: Float?,
     val cars: List<TrainCar>,
 )
 
 @Serializable
 data class TrainCar(
+    val carNo: String,
     val position: Int,
     val occupancy: Float,
 )

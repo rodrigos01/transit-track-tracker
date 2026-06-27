@@ -30,50 +30,48 @@ class DeparturesViewModel @AssistedInject constructor(
 
     private data class InputState(
         val selectedLines: Set<String> = emptySet(),
-        val expandedTrain: String? = null,
-        val expandedTrainStops: List<TrainStopState> = emptyList(),
     )
-
-    private val trainStops = mutableMapOf<String, List<TrainStopState>>()
 
     private val shouldShowBackButton = navController.previousBackStackEntry != null
 
     private val inputState = MutableStateFlow(InputState())
+    private val trainStopsState = MutableStateFlow(mapOf<String, List<TrainStopState>>())
 
-    val uiState: StateFlow<UiState> =
-        combine(inputState, repository.getDepartures(stationId)) { input, stationResult ->
-            val stationDetails = stationResult.getOrNull()
-            if (stationDetails != null) {
-                val station = stationDetails.station
-                UiState(
-                    title = station.stationFull,
-                    shouldShowBackButton = shouldShowBackButton,
-                    lines = station.lines.map {
-                        LineChipState(
-                            id = it.lineCode,
-                            name = it.lineAbbreviation,
-                            displayName = it.lineName,
-                            color = it.lineColor,
-                            selected = input.selectedLines.contains(it.lineCode) || input.selectedLines.isEmpty(),
-                        )
-                    }.sortedByDescending { it.selected },
-                    departures = stationDetails.departures.asSequence().filter { departure ->
-                        input.selectedLines.isEmpty() || input.selectedLines.contains(departure.lineCode)
-                    }.map { departure ->
-                        departure.asState(
-                            stops = input.expandedTrainStops
-                                .takeIf { input.expandedTrain == departure.trainId }.orEmpty()
-                        )
-                    }.toList(),
-                )
-            } else {
-                UiState(title = "Error retrieving departures")
-            }
-        }.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5000),
-            UiState(title = "", shouldShowBackButton = shouldShowBackButton)
-        )
+    val uiState: StateFlow<UiState> = combine(
+        inputState, trainStopsState, repository.getDepartures(stationId)
+    ) { input, trainStops, stationResult ->
+        val stationDetails = stationResult.getOrNull()
+        if (stationDetails != null) {
+            val station = stationDetails.station
+            UiState(
+                title = station.stationFull,
+                shouldShowBackButton = shouldShowBackButton,
+                lines = station.lines.map {
+                    LineChipState(
+                        id = it.lineCode,
+                        name = it.lineAbbreviation,
+                        displayName = it.lineName,
+                        color = it.lineColor,
+                        selected = input.selectedLines.contains(it.lineCode) || input.selectedLines.isEmpty(),
+                    )
+                }.sortedByDescending { it.selected },
+                departures = stationDetails.departures.asSequence().filter { departure ->
+                    input.selectedLines.isEmpty() || input.selectedLines.contains(departure.lineCode)
+                }.map { departure ->
+                    departure.asState(
+                        stops = trainStops.getOrDefault(departure.trainId, emptyList()),
+                        stopsLoading = trainStops[departure.trainId]?.isEmpty() == true
+                    )
+                }.toList(),
+            )
+        } else {
+            UiState(title = "Error retrieving departures")
+        }
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        UiState(title = "", shouldShowBackButton = shouldShowBackButton)
+    )
 
     fun onLineTapped(line: LineChipState) {
         val selected = inputState.value.selectedLines.contains(line.id)
@@ -87,29 +85,20 @@ class DeparturesViewModel @AssistedInject constructor(
     }
 
     fun onDepartureTapped(departure: DepartureState) {
-        if (inputState.value.expandedTrain == departure.trainId) {
-            inputState.value = inputState.value.copy(
-                expandedTrain = null,
-                expandedTrainStops = emptyList(),
-            )
-        } else {
+        if (trainStopsState.value[departure.trainId] == null) {
             viewModelScope.launch {
-                val stops = trainStops.getOrPut(departure.trainId) {
-                    val stopsData = repository.getStops(departure.trainId)
-                    val departureIndex = stopsData.indexOfFirst { it.stationCode == stationId }
-                    repository.getStops(departure.trainId).asSequence()
-                        .filterIndexed { index, _ -> index > departureIndex }.map {
-                            TrainStopState(
-                                stationName = it.stationName,
-                                time = SimpleDateFormat.getTimeInstance(SimpleDateFormat.SHORT)
-                                    .format(Date(it.arrivalTime))
-                            )
-                        }.toList()
-                }
-                inputState.value = inputState.value.copy(
-                    expandedTrain = departure.trainId,
-                    expandedTrainStops = stops,
-                )
+                trainStopsState.value += (departure.trainId to emptyList())
+                val stopsData = repository.getStops(departure.trainId)
+                val departureIndex = stopsData.indexOfFirst { it.stationCode == stationId }
+                val stops = repository.getStops(departure.trainId).asSequence()
+                    .filterIndexed { index, _ -> index > departureIndex }.map {
+                        TrainStopState(
+                            stationName = it.stationName,
+                            time = SimpleDateFormat.getTimeInstance(SimpleDateFormat.SHORT)
+                                .format(Date(it.arrivalTime))
+                        )
+                    }.toList()
+                trainStopsState.value += (departure.trainId to stops)
             }
         }
     }

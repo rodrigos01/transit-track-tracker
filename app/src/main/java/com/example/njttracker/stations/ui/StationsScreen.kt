@@ -69,7 +69,7 @@ fun StationsScreen(
     val viewModel: StationsViewModel = hiltViewModel<StationsViewModel>()
 
     val intent = remember { mutableStateOf<Intent?>(null) }
-    val state by viewModel.uiState(snapshotFlow { intent.value }).collectAsStateWithLifecycle()
+    val state by remember { viewModel.uiState(snapshotFlow { intent.value }) }.collectAsStateWithLifecycle()
     LaunchedEffect(state) {
         intent.value = null
     }
@@ -258,6 +258,8 @@ fun StationsScreenPreview() {
                                 lineColor = "#FF0000",
                                 destination = "Destination $station",
                                 time = "12:34",
+                                scheduledTime = "12:34",
+                                isDelayed = false,
                                 track = "1",
                                 trackConfidence = TrackConfidence.HIGH,
                                 occupancy = com.example.njttracker.common.domain.TrainOccupancyState(

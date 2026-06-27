@@ -20,14 +20,15 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,12 +52,28 @@ import com.example.njttracker.common.model.TrackConfidence
 
 @Composable
 fun DepartureItem(departure: DepartureState, onTapped: () -> Unit, modifier: Modifier = Modifier) {
+    var expanded by remember { mutableStateOf(false) }
+    DepartureItem(
+        departure, expanded,
+        onTapped = {
+            expanded = !expanded
+            onTapped()
+        },
+        modifier,
+    )
+}
+
+@Composable
+fun DepartureItem(
+    departure: DepartureState,
+    expanded: Boolean,
+    onTapped: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val colorInt = departure.lineColor.toColorInt()
     val lineColor = Color(colorInt)
     val cardColor =
         Color(colorInt).copy(alpha = 0.2F).compositeOver(MaterialTheme.colorScheme.surface)
-
-    var expanded by remember { mutableStateOf(false) }
 
     val horizontalPadding by animateDpAsState(if (expanded) 8.dp else 16.dp)
     val backgroundColor by animateColorAsState(if (expanded) cardColor.copy(alpha = 0.5F) else Color.Transparent)
@@ -82,13 +100,25 @@ fun DepartureItem(departure: DepartureState, onTapped: () -> Unit, modifier: Mod
                     }
                 )
         ) {
-            Text(
-                text = departure.time,
-                style = MaterialTheme.typography.labelLarge,
+            Column(
                 modifier = Modifier
                     .padding(top = 8.dp)
                     .width(72.dp)
-            )
+            ) {
+                if (departure.isDelayed) {
+                    Text(
+                        text = departure.scheduledTime,
+                        style = MaterialTheme.typography.labelLarge,
+                        textDecoration = TextDecoration.LineThrough,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                Text(
+                    text = departure.time,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.width(72.dp)
+                )
+            }
             Column(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier
@@ -141,55 +171,8 @@ fun DepartureItem(departure: DepartureState, onTapped: () -> Unit, modifier: Mod
                     .padding(4.dp)
             )
         }
-        val occupancyHeigh by animateDpAsState(if (expanded) 32.dp else 24.dp)
-        val cars = departure.occupancy.cars
-        if (cars.isNotEmpty()) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(occupancyHeigh)
-                    .padding(bottom = 4.dp)
-                    .clip(MaterialTheme.shapes.medium),
-            ) {
-                cars.forEach { car ->
-                    Box(
-                        modifier = Modifier
-                            .weight(1F)
-                            .background(
-                                MaterialTheme.colorScheme.surface
-                            )
-                    ) {
-                        if (car.occupancy > 0) {
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Spacer(
-                                    modifier = Modifier.then(
-                                        if (car.occupancy < 1) {
-                                            Modifier.weight(1F - car.occupancy)
-                                        } else {
-                                            Modifier
-                                        }
-                                    )
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .weight(car.occupancy)
-                                        .fillMaxWidth()
-                                        .background(lineColor)
-                                )
-                            }
-                        }
-                        Text(
-                            car.position,
-                            color = if (car.occupancy > 0.5F) LineBadgeDefaults.textColor(lineColor) else MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.align(Alignment.Center),
-                        )
-                    }
-                }
-            }
-        }
         AnimatedContent(
-            departure.stops,
+            expanded,
             transitionSpec = {
                 slideInVertically().togetherWith(
                     slideOutVertically()
@@ -197,13 +180,85 @@ fun DepartureItem(departure: DepartureState, onTapped: () -> Unit, modifier: Mod
             },
             contentAlignment = Alignment.TopCenter,
             modifier = Modifier.fillMaxWidth(),
-        ) { stops ->
+        ) { expand ->
             Column(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                if (stops.isNotEmpty()) {
-                    stops.forEach { stop ->
+                if (expand) {
+                    val cars = departure.occupancy.cars
+                    if (cars.isNotEmpty()) {
+                        Text(
+                            text = "Occupancy",
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(32.dp)
+                                .clip(MaterialTheme.shapes.medium),
+                        ) {
+                            cars.forEach { car ->
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1F)
+                                        .fillMaxHeight()
+                                        .background(
+                                            MaterialTheme.colorScheme.surface
+                                        )
+                                ) {
+                                    if (car.occupancy > 0) {
+                                        Column(modifier = Modifier.fillMaxWidth()) {
+                                            Spacer(
+                                                modifier = Modifier.then(
+                                                    if (car.occupancy < 1) {
+                                                        Modifier.weight(1F - car.occupancy)
+                                                    } else {
+                                                        Modifier
+                                                    }
+                                                )
+                                            )
+                                            Box(
+                                                modifier = Modifier
+                                                    .weight(car.occupancy)
+                                                    .fillMaxWidth()
+                                                    .background(lineColor)
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        car.carId,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (car.occupancy > 0.5F) LineBadgeDefaults.textColor(
+                                            lineColor
+                                        ) else MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.align(Alignment.Center),
+                                    )
+                                }
+                            }
+                        }
+                        Text(
+                            text = "Front of the train →",
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(bottom = 4.dp).align(Alignment.End),
+                        )
+                    }
+                    Text(
+                        text = "Stops",
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    if (departure.stopsLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .align(Alignment.CenterHorizontally),
+                            color = lineColor,
+                        )
+                    }
+                    departure.stops.forEach { stop ->
                         ListItem(
                             headlineContent = {
                                 Text(text = stop.stationName)
@@ -214,12 +269,6 @@ fun DepartureItem(departure: DepartureState, onTapped: () -> Unit, modifier: Mod
                             modifier = Modifier.clip(MaterialTheme.shapes.large),
                         )
                     }
-                    DisposableEffect(stops) {
-                        expanded = true
-                        onDispose {
-                            expanded = false
-                        }
-                    }
                 }
             }
         }
@@ -228,7 +277,13 @@ fun DepartureItem(departure: DepartureState, onTapped: () -> Unit, modifier: Mod
 
 @Composable
 @Preview
-fun DepartureItemPreview() {
+fun DepartureItemPreviewExpanded() {
+    DepartureItemPreview(expanded = true)
+}
+
+@Composable
+@Preview
+fun DepartureItemPreview(expanded: Boolean = false) {
     Surface {
         DepartureItem(
             DepartureState(
@@ -236,20 +291,27 @@ fun DepartureItemPreview() {
                 lineName = "Line 1",
                 lineColor = "#FF0000",
                 destination = "Destination 1",
-                time = "12:34 PM",
+                time = "12:38 PM",
+                scheduledTime = "12:34 PM",
+                isDelayed = true,
                 track = "1",
                 trackConfidence = TrackConfidence.HIGH,
                 occupancy = TrainOccupancyState(
                     occupancy = 0.5F, cars = List(7) {
                         TrainCarState(
-                            position = it.toString(), occupancy = (1..100).random() / 100F
+                            carId = "00$it",
+                            position = it.toString(),
+                            occupancy = (1..100).random() / 100F
                         )
                     }),
                 stops = List(7) {
                     TrainStopState(
                         stationName = "Station ${it + 1}", time = "12:34 PM"
                     )
-                }),
+                },
+                stopsLoading = true,
+            ),
+            expanded = expanded,
             onTapped = {},
         )
     }
