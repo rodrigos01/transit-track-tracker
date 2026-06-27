@@ -38,8 +38,8 @@ class DeparturesViewModel @AssistedInject constructor(
     private val trainStopsState = MutableStateFlow(mapOf<String, List<TrainStopState>>())
 
     val uiState: StateFlow<UiState> = combine(
-        inputState, trainStopsState, repository.getDepartures(stationId)
-    ) { input, trainStops, stationResult ->
+        inputState, trainStopsState, repository.getDepartures(stationId), repository.favoriteLineIds
+    ) { input, trainStops, stationResult, favoriteLineIds ->
         val stationDetails = stationResult.getOrNull()
         if (stationDetails != null) {
             val station = stationDetails.station
@@ -53,16 +53,23 @@ class DeparturesViewModel @AssistedInject constructor(
                         displayName = it.lineName,
                         color = it.lineColor,
                         selected = input.selectedLines.contains(it.lineCode) || input.selectedLines.isEmpty(),
+                        highlighted = input.selectedLines.contains(it.lineCode),
+                        isFavorite = favoriteLineIds.contains(it.lineCode),
                     )
-                }.sortedByDescending { it.selected },
+                }
+                    .sortedWith(compareByDescending<LineChipState> { it.highlighted }.thenByDescending { it.isFavorite }),
                 departures = stationDetails.departures.asSequence().filter { departure ->
                     input.selectedLines.isEmpty() || input.selectedLines.contains(departure.lineCode)
                 }.map { departure ->
                     departure.asState(
                         stops = trainStops.getOrDefault(departure.trainId, emptyList()),
-                        stopsLoading = trainStops[departure.trainId]?.isEmpty() == true
+                        stopsLoading = trainStops[departure.trainId]?.isEmpty() == true,
+                        isFavoriteLine = favoriteLineIds.contains(departure.lineCode),
                     )
-                }.toList(),
+                }.let { departures ->
+                    val firstFavoriteDeparture = departures.firstOrNull { it.isFavoriteLine }
+                    listOfNotNull(firstFavoriteDeparture) + departures.filterNot { it == firstFavoriteDeparture }
+                },
             )
         } else {
             UiState(title = "Error retrieving departures")
@@ -82,6 +89,16 @@ class DeparturesViewModel @AssistedInject constructor(
                 inputState.value.selectedLines - line.id
             }
         )
+    }
+
+    fun onLineFavoriteTapped(line: LineChipState) {
+        viewModelScope.launch {
+            if (line.isFavorite) {
+                repository.removeFavoriteLine(line.id)
+            } else {
+                repository.addFavoriteLine(line.id)
+            }
+        }
     }
 
     fun onDepartureTapped(departure: DepartureState) {

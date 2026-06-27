@@ -2,6 +2,7 @@ package com.example.njttracker.departures.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,6 +14,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -60,6 +63,7 @@ fun DeparturesScreen(
         onBackTapped = viewModel::onBackTapped,
         onLineTapped = viewModel::onLineTapped,
         onDepartureTapped = viewModel::onDepartureTapped,
+        onLineFavoriteTapped = viewModel::onLineFavoriteTapped,
         modifier,
     )
 }
@@ -71,6 +75,7 @@ fun DeparturesScreen(
     onBackTapped: () -> Unit,
     onLineTapped: (LineChipState) -> Unit,
     onDepartureTapped: (DepartureState) -> Unit,
+    onLineFavoriteTapped: (LineChipState) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(topBar = {
@@ -102,18 +107,29 @@ fun DeparturesScreen(
                         items(state.lines, key = { it.id }) {
                             val selectedColor = Color(it.color.toColorInt())
                             val unselectedColor = selectedColor.copy(alpha = 0.2F)
+                            val contentColor = LineBadgeDefaults.textColor(selectedColor)
                             FilterChip(
                                 selected = it.selected,
-                                       onClick = { onLineTapped(it) },
-                                       label = { Text(it.name) },
-                                       colors = FilterChipDefaults.filterChipColors(
-                                           selectedContainerColor = selectedColor,
-                                           selectedLabelColor = LineBadgeDefaults.textColor(
-                                               selectedColor
-                                           ),
-                                           containerColor = unselectedColor,
-                                       ),
-                                       modifier = Modifier.animateItem()
+                                onClick = { onLineTapped(it) },
+                                label = { Text(it.name) },
+                                trailingIcon = {
+                                    if (it.isFavorite || it.highlighted) {
+                                        Icon(
+                                            if (it.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                            contentDescription = null,
+                                            modifier = Modifier.clickable(onClick = {
+                                                onLineFavoriteTapped(it)
+                                            })
+                                        )
+                                    }
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = selectedColor,
+                                    selectedLabelColor = contentColor,
+                                    selectedTrailingIconColor = contentColor,
+                                    containerColor = unselectedColor,
+                                ),
+                                modifier = Modifier.animateItem(),
                             )
                         }
                     }
@@ -204,6 +220,7 @@ fun DeparturesScreenPreview() {
                 ),
                 onBackTapped = {},
                 onLineTapped = {},
+                onLineFavoriteTapped = {},
                 onDepartureTapped = {},
             )
         }

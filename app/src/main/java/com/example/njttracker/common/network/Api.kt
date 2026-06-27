@@ -19,8 +19,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
-//private const val BASE_URL = "https://penn-njt-tracker-api-1082897770533.us-east1.run.app"
-private const val BASE_URL = "http://10.0.2.2:3000"
+private const val BASE_URL = "https://penn-njt-tracker-api-1082897770533.us-east1.run.app"
+//private const val BASE_URL = "http://10.0.2.2:3000"
 
 class Api @Inject constructor(private val logger: AnalyticsLogger) : RemoteDataStore {
     private val json = Json {
@@ -51,10 +51,11 @@ class Api @Inject constructor(private val logger: AnalyticsLogger) : RemoteDataS
         }
     }.flowOn(Dispatchers.IO)
 
-    override suspend fun stations(favorites: Set<String>?): StationsResponse =
+    override suspend fun stations(favoriteStations: Set<String>?, favoriteLines: Set<String>?): StationsResponse =
         withContext(Dispatchers.IO) {
-            val favoritesQuery = favorites?.joinToString(",") ?: ""
-            client.get("$BASE_URL/stations?favorites=$favoritesQuery").body()
+            val favoriteStationsQuery = favoriteStations?.joinToString(",") ?: ""
+            val favoriteLinesQuery = favoriteLines?.joinToString(",") ?: ""
+            client.get("$BASE_URL/stations?favorites=$favoriteStationsQuery&favoriteLines=$favoriteLinesQuery").body()
         }
 
     override suspend fun stops(trainId: String): StopsResponse = withContext(Dispatchers.IO) {

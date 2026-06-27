@@ -8,6 +8,6 @@ import kotlinx.coroutines.flow.Flow
 
 interface RemoteDataStore {
     fun departures(stationId: String): Flow<DeparturesResponse>
-    suspend fun stations(favorites: Set<String>? = null): StationsResponse
+    suspend fun stations(favoriteStations: Set<String>? = null, favoriteLines: Set<String>? = null): StationsResponse
     suspend fun stops(trainId: String): StopsResponse
 }

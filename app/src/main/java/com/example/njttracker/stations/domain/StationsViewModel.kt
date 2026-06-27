@@ -1,6 +1,5 @@
 package com.example.njttracker.stations.domain
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.njttracker.common.domain.LineChipState
@@ -28,10 +27,9 @@ class StationsViewModel @Inject constructor(
     val externalState =
         combine(repository.stations, repository.favoriteStations) { result, favoriteIds ->
             Pair(result.getOrDefault(emptyList()), favoriteIds)
-        }.filter { it.first.isNotEmpty() }
-            .onEach { Log.d("StationsViewModel", "Stations: ${it.first}") }.stateIn(
-                viewModelScope, SharingStarted.Lazily, Pair(emptyList(), emptySet())
-            )
+        }.filter { it.first.isNotEmpty() }.stateIn(
+            viewModelScope, SharingStarted.Lazily, Pair(emptyList(), emptySet())
+        )
 
     fun uiState(intents: Flow<Intent?>): StateFlow<UiState> {
         val intentFlow = intents.onEach { intent ->
@@ -50,12 +48,10 @@ class StationsViewModel @Inject constructor(
     }
 
     private fun loadedState(intents: Flow<Intent?>) =
-        intents.onEach { Log.d("StationsViewModel", "Intent: $it") }
-            .combine(externalState) { intent, (stations, favoriteIds) ->
+        intents.combine(externalState) { intent, (stations, favoriteIds) ->
                 Triple(intent, stations, favoriteIds)
-            }.onEach { Log.d("StationsViewModel", "Triple: $it") }
+            }
             .scan(UiState.Loaded(stations = emptyList())) { state, (intent, stations, favoriteIds) ->
-                Log.d("StationsViewModel", "State: $state")
                 val filter = when (intent) {
                     is Intent.SearchQueryChanged -> intent.query
                     is Intent.SearchQueryCleared -> ""

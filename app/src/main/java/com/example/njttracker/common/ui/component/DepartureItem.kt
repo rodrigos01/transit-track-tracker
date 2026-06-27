@@ -132,7 +132,9 @@ fun DepartureItem(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     LineBadge(
-                        lineName = departure.lineName, lineColor = lineColor
+                        lineName = departure.lineName,
+                        lineColor = lineColor,
+                        isFavorite = departure.isFavoriteLine,
                     )
                     if (departure.isCompact) {
                         Text(text = departure.destination)
@@ -242,7 +244,9 @@ fun DepartureItem(
                         Text(
                             text = "Front of the train →",
                             style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(bottom = 4.dp).align(Alignment.End),
+                            modifier = Modifier
+                                .padding(bottom = 4.dp)
+                                .align(Alignment.End),
                         )
                     }
                     Text(

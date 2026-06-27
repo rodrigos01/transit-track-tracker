@@ -19,6 +19,7 @@ data class DepartureState(
     val stops: List<TrainStopState> = emptyList(),
     val stopsLoading: Boolean = false,
     val isCompact: Boolean = false,
+    val isFavoriteLine: Boolean = false,
 )
 
 data class TrainOccupancyState(
@@ -35,6 +36,7 @@ data class TrainCarState(
 fun Departure.asState(
     stops: List<TrainStopState> = emptyList(), isCompact: Boolean = false,
     stopsLoading: Boolean = false,
+    isFavoriteLine: Boolean = false,
 ): DepartureState = DepartureState(
     trainId = trainId,
     lineName = lineName,
@@ -50,5 +52,6 @@ fun Departure.asState(
     }),
     stops = stops,
     stopsLoading = stopsLoading,
+    isFavoriteLine = isFavoriteLine,
     isCompact = isCompact,
 )

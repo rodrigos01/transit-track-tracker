@@ -14,12 +14,13 @@ import javax.inject.Inject
 class PreferencesStore @Inject constructor(@ApplicationContext private val context: Context) : LocalDataStore {
 
     private val FAVORITE_STATIONS_KEY = stringSetPreferencesKey("favorite_stations")
+    private val FAVORITE_LINES_KEY = stringSetPreferencesKey("favorite_lines")
 
     private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "preferences")
+
     override val favoriteStationIds: Flow<Set<String>> = context.dataStore.data.map {
         it[FAVORITE_STATIONS_KEY] ?: emptySet()
     }
-
 
     override suspend fun addFavoriteStationId(stationId: String) {
         context.dataStore.updateData { preferences ->
@@ -33,6 +34,26 @@ class PreferencesStore @Inject constructor(@ApplicationContext private val conte
         context.dataStore.updateData { preferences ->
             preferences.update(FAVORITE_STATIONS_KEY) { currentFavorites ->
                 (currentFavorites ?: emptySet()) - stationId
+            }
+        }
+    }
+
+    override val favoriteLineIds: Flow<Set<String>> = context.dataStore.data.map {
+        it[FAVORITE_LINES_KEY] ?: emptySet()
+    }
+
+    override suspend fun addFavoriteLineId(lineId: String) {
+        context.dataStore.updateData { preferences ->
+            preferences.update(FAVORITE_LINES_KEY) { currentFavorites ->
+                (currentFavorites ?: emptySet()) + lineId
+            }
+        }
+    }
+
+    override suspend fun removeFavoriteLineId(lineId: String) {
+        context.dataStore.updateData { preferences ->
+            preferences.update(FAVORITE_LINES_KEY) { currentFavorites ->
+                (currentFavorites ?: emptySet()) - lineId
             }
         }
     }
