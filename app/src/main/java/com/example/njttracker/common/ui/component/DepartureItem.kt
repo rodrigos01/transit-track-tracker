@@ -236,7 +236,14 @@ fun DepartureItem(
                                         color = if (car.occupancy > 0.5F) LineBadgeDefaults.textColor(
                                             lineColor
                                         ) else MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.align(Alignment.Center),
+                                        autoSize = TextAutoSize.StepBased(
+                                            minFontSize = 4.sp,
+                                            maxFontSize = MaterialTheme.typography.labelSmall.fontSize
+                                        ),
+                                        maxLines = 1,
+                                        modifier = Modifier
+                                            .align(Alignment.Center)
+                                            .padding(horizontal = 2.dp),
                                     )
                                 }
                             }
@@ -258,7 +265,8 @@ fun DepartureItem(
                         CircularProgressIndicator(
                             modifier = Modifier
                                 .size(24.dp)
-                                .align(Alignment.CenterHorizontally),
+                                .align(Alignment.CenterHorizontally)
+                                .animateEnterExit(),
                             color = lineColor,
                         )
                     }
@@ -270,7 +278,9 @@ fun DepartureItem(
                             trailingContent = {
                                 Text(text = stop.time)
                             },
-                            modifier = Modifier.clip(MaterialTheme.shapes.large),
+                            modifier = Modifier
+                                .clip(MaterialTheme.shapes.large)
+                                .animateEnterExit(),
                         )
                     }
                 }
@@ -301,7 +311,7 @@ fun DepartureItemPreview(expanded: Boolean = false) {
                 track = "1",
                 trackConfidence = TrackConfidence.HIGH,
                 occupancy = TrainOccupancyState(
-                    occupancy = 0.5F, cars = List(7) {
+                    occupancy = 0.5F, cars = List(14) {
                         TrainCarState(
                             carId = "00$it",
                             position = it.toString(),
