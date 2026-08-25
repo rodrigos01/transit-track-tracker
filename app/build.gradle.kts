@@ -46,7 +46,7 @@ android {
             )
             firebaseAppDistribution {
                 artifactType = "APK"
-                serviceCredentialsFile = "app/transit-track-tracker-fe94f978ff7b.json"
+                serviceCredentialsFile = "app/${project.findProperty("FIREBASE_CREDENTIALS_FILE")}"
                 groups = "developers"
             }
         }
