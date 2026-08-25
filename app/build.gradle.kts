@@ -1,4 +1,5 @@
 import com.google.firebase.appdistribution.gradle.firebaseAppDistribution
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -9,6 +10,12 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.firebase.crashlytics)
+}
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
 }
 
 android {
@@ -29,10 +36,10 @@ android {
         create("release") {
             // These properties should be defined in your local gradle.properties file
             // to keep sensitive credentials out of version control.
-            storeFile = file(project.findProperty("RELEASE_STORE_FILE") ?: "release.jks")
-            storePassword = project.findProperty("RELEASE_STORE_PASSWORD") as String?
-            keyAlias = project.findProperty("RELEASE_KEY_ALIAS") as String?
-            keyPassword = project.findProperty("RELEASE_KEY_PASSWORD") as String?
+            storeFile = file(localProperties.getProperty("RELEASE_STORE_FILE") ?: "release.jks")
+            storePassword = localProperties.getProperty("RELEASE_STORE_PASSWORD") as String?
+            keyAlias = localProperties.getProperty("RELEASE_KEY_ALIAS") as String?
+            keyPassword = localProperties.getProperty("RELEASE_KEY_PASSWORD") as String?
         }
     }
 
@@ -46,7 +53,7 @@ android {
             )
             firebaseAppDistribution {
                 artifactType = "APK"
-                serviceCredentialsFile = "app/${project.findProperty("FIREBASE_CREDENTIALS_FILE")}"
+                serviceCredentialsFile = "app/${localProperties.getProperty("FIREBASE_CREDENTIALS_FILE")}"
                 groups = "developers"
             }
         }
