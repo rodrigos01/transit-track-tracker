@@ -49,6 +49,7 @@ import androidx.navigation.NavController
 import com.example.njttracker.common.domain.DepartureState
 import com.example.njttracker.common.domain.LineChipState
 import com.example.njttracker.common.model.TrackConfidence
+import com.example.njttracker.common.model.TrainStatus
 import com.example.njttracker.common.navigation.NavDestination
 import com.example.njttracker.common.ui.AccessibleForward
 import com.example.njttracker.common.ui.Train
@@ -177,7 +178,9 @@ private fun StationsList(
                             .horizontalScroll(state = rememberScrollState())
                     ) {
                         station.lines.forEach { line ->
-                            LineBadge(line.name, Color(line.color.toColorInt()))
+                            LineBadge(Color(line.color.toColorInt())) {
+                                Text(line.name)
+                            }
                         }
                     }
                 }, trailingContent = {
@@ -214,6 +217,7 @@ private fun StationsList(
                     )
                     DepartureItem(
                         departure = station.nextDeparture,
+                        isExpandable = false,
                         onTapped = {},
                     )
                 }
@@ -259,7 +263,7 @@ fun StationsScreenPreview() {
                                 destination = "Destination $station",
                                 time = "12:34",
                                 scheduledTime = "12:34",
-                                isDelayed = false,
+                                status = TrainStatus.ON_TIME,
                                 track = "1",
                                 trackConfidence = TrackConfidence.HIGH,
                                 occupancy = com.example.njttracker.common.domain.TrainOccupancyState(

@@ -49,12 +49,19 @@ import com.example.njttracker.common.domain.TrainCarState
 import com.example.njttracker.common.domain.TrainOccupancyState
 import com.example.njttracker.common.domain.TrainStopState
 import com.example.njttracker.common.model.TrackConfidence
+import com.example.njttracker.common.model.TrainStatus
 
 @Composable
-fun DepartureItem(departure: DepartureState, onTapped: () -> Unit, modifier: Modifier = Modifier) {
+fun DepartureItem(
+    departure: DepartureState,
+    onTapped: () -> Unit,
+    modifier: Modifier = Modifier,
+    isExpandable: Boolean = true,
+) {
     var expanded by remember { mutableStateOf(false) }
     DepartureItem(
-        departure, expanded,
+        departure = departure,
+        expanded = isExpandable && expanded,
         onTapped = {
             expanded = !expanded
             onTapped()
@@ -68,16 +75,23 @@ fun DepartureItem(
     departure: DepartureState,
     expanded: Boolean,
     onTapped: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
+    val isCancelled = departure.status == TrainStatus.CANCELLED
+    val textDecoration =
+        if (isCancelled) TextDecoration.LineThrough else null
+    val isCompact = departure.isCompact || isCancelled
+    val shouldExpand = expanded && !isCancelled
+
     val colorInt = departure.lineColor.toColorInt()
-    val lineColor = Color(colorInt)
-    val cardColor =
-        Color(colorInt).copy(alpha = 0.2F).compositeOver(MaterialTheme.colorScheme.surface)
+    val lineColorSoft = Color(colorInt).copy(alpha = 0.2F).compositeOver(MaterialTheme.colorScheme.surface)
+    val lineColor = if (isCancelled) lineColorSoft else Color(colorInt)
+    val cardColor = if (isCancelled) Color.LightGray else lineColorSoft
 
     val horizontalPadding by animateDpAsState(if (expanded) 8.dp else 16.dp)
     val backgroundColor by animateColorAsState(if (expanded) cardColor.copy(alpha = 0.5F) else Color.Transparent)
     val innerPadding by animateDpAsState(if (expanded) 8.dp else 0.dp)
+
 
     Column(
         modifier = modifier
@@ -93,7 +107,7 @@ fun DepartureItem(
                 .clip(MaterialTheme.shapes.medium)
                 .clickable(onClick = onTapped)
                 .then(
-                    if (expanded) {
+                    if (shouldExpand) {
                         Modifier.padding(bottom = 8.dp)
                     } else {
                         Modifier
@@ -105,7 +119,7 @@ fun DepartureItem(
                     .padding(top = 8.dp)
                     .width(72.dp)
             ) {
-                if (departure.isDelayed) {
+                if (departure.status == TrainStatus.DELAYED) {
                     Text(
                         text = departure.scheduledTime,
                         style = MaterialTheme.typography.labelLarge,
@@ -116,8 +130,16 @@ fun DepartureItem(
                 Text(
                     text = departure.time,
                     style = MaterialTheme.typography.labelLarge,
+                    textDecoration = textDecoration,
                     modifier = Modifier.width(72.dp)
                 )
+                if (departure.status == TrainStatus.CANCELLED) {
+                    Text(
+                        text = "Cancelled",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
             Column(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -132,19 +154,20 @@ fun DepartureItem(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     LineBadge(
-                        lineName = departure.lineName,
                         lineColor = lineColor,
                         isFavorite = departure.isFavoriteLine,
-                    )
-                    if (departure.isCompact) {
-                        Text(text = departure.destination)
+                    ) {
+                        Text(departure.lineName, textDecoration = textDecoration)
+                    }
+                    if (isCompact) {
+                        Text(text = departure.destination, textDecoration = textDecoration)
                     } else {
                         Text(
                             text = departure.trainId, style = MaterialTheme.typography.titleSmall
                         )
                     }
                 }
-                if (!departure.isCompact) {
+                if (!isCompact) {
                     Text(text = departure.destination)
                 }
             }
@@ -159,6 +182,7 @@ fun DepartureItem(
                 autoSize = TextAutoSize.StepBased(minFontSize = 12.sp, maxFontSize = 52.sp),
                 text = departure.track,
                 textAlign = TextAlign.Center,
+                textDecoration = textDecoration,
                 modifier = Modifier
                     .padding(vertical = 4.dp)
                     .fillMaxHeight()
@@ -174,7 +198,7 @@ fun DepartureItem(
             )
         }
         AnimatedContent(
-            expanded,
+            shouldExpand,
             transitionSpec = {
                 slideInVertically().togetherWith(
                     slideOutVertically()
@@ -297,7 +321,7 @@ fun DepartureItemPreviewExpanded() {
 
 @Composable
 @Preview
-fun DepartureItemPreview(expanded: Boolean = false) {
+fun DepartureItemPreview(expanded: Boolean = false, status: TrainStatus = TrainStatus.ON_TIME) {
     Surface {
         DepartureItem(
             DepartureState(
@@ -307,7 +331,7 @@ fun DepartureItemPreview(expanded: Boolean = false) {
                 destination = "Destination 1",
                 time = "12:38 PM",
                 scheduledTime = "12:34 PM",
-                isDelayed = true,
+                status = status,
                 track = "1",
                 trackConfidence = TrackConfidence.HIGH,
                 occupancy = TrainOccupancyState(
@@ -329,4 +353,10 @@ fun DepartureItemPreview(expanded: Boolean = false) {
             onTapped = {},
         )
     }
+}
+
+@Composable
+@Preview
+fun DepartureItemPreviewCancelled() {
+    DepartureItemPreview(status = TrainStatus.CANCELLED)
 }

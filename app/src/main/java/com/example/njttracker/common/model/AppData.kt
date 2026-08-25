@@ -20,6 +20,7 @@ data class Departure(
     val scheduledTime: Long,
     val time: Long,
     val delay: Int,
+    val status: TrainStatus,
     val occupancy: Float?,
     val cars: List<TrainCar>,
 )
@@ -34,6 +35,13 @@ data class TrainCar(
 @Serializable(with = TrackConfidenceSerializer::class)
 enum class TrackConfidence(val serverValue: String) {
     NONE("none"), LOW("low"), MEDIUM("medium"), HIGH("high"), CONFIRMED("confirmed");
+}
+@Serializable(with = TrainStatusSerializer::class)
+enum class TrainStatus(val serverValue: String) {
+    ON_TIME("ON_TIME"),
+    DELAYED("DELAYED"),
+    CANCELLED("CANCELLED"),
+    DEPARTED("DEPARTED")
 }
 
 @Serializable
@@ -79,5 +87,20 @@ object TrackConfidenceSerializer : KSerializer<TrackConfidence> {
     override fun deserialize(decoder: Decoder): TrackConfidence {
         val value = decoder.decodeString()
         return TrackConfidence.entries.find { it.serverValue == value } ?: TrackConfidence.NONE
+    }
+}
+
+object TrainStatusSerializer : KSerializer<TrainStatus> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor(
+        "com.example.njttracker.common.model.TrainStatus", PrimitiveKind.STRING
+    )
+
+    override fun serialize(encoder: Encoder, value: TrainStatus) {
+        encoder.encodeString(value.serverValue)
+    }
+
+    override fun deserialize(decoder: Decoder): TrainStatus {
+        val value = decoder.decodeString()
+        return TrainStatus.entries.find { it.serverValue == value } ?: TrainStatus.ON_TIME
     }
 }
