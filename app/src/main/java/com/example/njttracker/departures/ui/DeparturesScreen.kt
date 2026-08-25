@@ -40,6 +40,7 @@ import com.example.njttracker.common.domain.LineChipState
 import com.example.njttracker.common.domain.TrainOccupancyState
 import com.example.njttracker.common.domain.TrainStopState
 import com.example.njttracker.common.model.TrackConfidence
+import com.example.njttracker.common.model.TrainStatus
 import com.example.njttracker.common.ui.component.DepartureItem
 import com.example.njttracker.common.ui.component.LineBadgeDefaults
 import com.example.njttracker.common.ui.theme.NJTTrackerTheme
@@ -191,7 +192,7 @@ fun DeparturesScreenPreview() {
                                        destination = "${lineName}Town",
                                        scheduledTime = timeString,
                                        time = timeString,
-                                       isDelayed = false,
+                                       status = TrainStatus.ON_TIME,
                                        track = (1..23).random().toString(),
                                        trackConfidence = TrackConfidence.entries.toTypedArray()
                                            .random(),

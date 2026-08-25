@@ -2,6 +2,7 @@ package com.example.njttracker.common.domain
 
 import com.example.njttracker.common.model.Departure
 import com.example.njttracker.common.model.TrackConfidence
+import com.example.njttracker.common.model.TrainStatus
 import java.text.SimpleDateFormat
 import java.util.Date
 
@@ -12,7 +13,7 @@ data class DepartureState(
     val destination: String,
     val scheduledTime: String,
     val time: String,
-    val isDelayed: Boolean,
+    val status: TrainStatus,
     val track: String,
     val trackConfidence: TrackConfidence,
     val occupancy: TrainOccupancyState,
@@ -42,9 +43,9 @@ fun Departure.asState(
     lineName = lineName,
     lineColor = lineColor,
     destination = destination,
-    scheduledTime = SimpleDateFormat.getTimeInstance(SimpleDateFormat.SHORT).format(Date(time)),
+    scheduledTime = SimpleDateFormat.getTimeInstance(SimpleDateFormat.SHORT).format(Date(scheduledTime)),
     time = SimpleDateFormat.getTimeInstance(SimpleDateFormat.SHORT).format(Date(time)),
-    isDelayed = delay > 0,
+    status = status,
     track = track ?: "-",
     trackConfidence = trackConfidence,
     occupancy = TrainOccupancyState(occupancy, cars.map {
