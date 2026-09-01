@@ -7,6 +7,10 @@ on:
       - ci-test
   workflow_dispatch:
 
+permissions:
+  contents: read
+  id-token: write   # required for Workload Identity Federation - no stored GCP key
+
 jobs:
   build-and-distribute:
     name: Build prod release APK and distribute via Firebase
@@ -28,32 +32,25 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Write google-services.json
-        env:
-          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
-        run: |
-          printf '%s' "$GOOGLE_SERVICES_JSON" > app/google-services.json
+      - id: auth
+        name: Authenticate to GCP via Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          token_format: access_token
 
-      - name: Write Firebase App Distribution service account credentials
+      # Replaces the four "write secret to file" steps this workflow used to
+      # have (google-services.json, Firebase credentials, release.jks,
+      # local.properties) - all four now come from the same GCS bucket the
+      # Claude Cloud environment's SessionStart hook syncs from, so there's
+      # one place to rotate them instead of two.
+      - name: Sync secrets from bucket
         env:
-          FIREBASE_APP_DISTRIBUTION_CREDENTIALS: ${{ secrets.FIREBASE_APP_DISTRIBUTION_CREDENTIALS }}
-        run: printf '%s' "$FIREBASE_APP_DISTRIBUTION_CREDENTIALS" > app/firebase-credentials.json
-
-      - name: Write release keystore
-        env:
-          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
-        run: echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > app/release.jks
-
-      - name: Write signing config to local.properties
-        env:
-          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
-          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: |
-          printf 'RELEASE_STORE_PASSWORD=%s\n' "$RELEASE_STORE_PASSWORD" >> local.properties
-          printf 'RELEASE_KEY_ALIAS=%s\n' "$RELEASE_KEY_ALIAS" >> local.properties
-          printf 'RELEASE_KEY_PASSWORD=%s\n' "$RELEASE_KEY_PASSWORD" >> local.properties
-          printf 'FIREBASE_CREDENTIALS_FILE=%s\n' "firebase-credentials.json" >> local.properties
+          GCS_SECRETS_BUCKET: ${{ vars.GCS_SECRETS_BUCKET }}
+          GCS_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          REPO_PATH: ${{ github.repository }}
+        run: ./scripts/sync-secrets-from-bucket.sh
 
       - name: Make gradlew executable
         run: chmod +x gradlew

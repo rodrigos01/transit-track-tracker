@@ -39,19 +39,18 @@ if [ -x "$SDKMANAGER" ] && [ -f "$REPO_DIR/app/build.gradle.kts" ]; then
 fi
 
 # --- Mirror this repo's secrets from the shared GCS bucket onto the checkout ---
-# See the earlier design discussion: the bucket mirrors, under
-# <github-owner>/<repo>/, exactly the file tree that needs to land at the
-# repo root (e.g. local.properties, app/release.jks, app/google-services.json
-# for this project). Auth is a JWT-bearer OAuth exchange using the shared
-# service-account key, done with tools already on the VM (openssl, jq, curl).
-sync_secrets_from_bucket() {
-  [ -n "${GCP_SA_KEY_B64:-}" ] && [ -n "${GCS_SECRETS_BUCKET:-}" ] || return 1
+# The actual "list + download objects under <owner>/<repo>/" logic lives in
+# scripts/sync-secrets-from-bucket.sh, shared with CI. This hook's only job
+# is minting an access token: the Cloud environment has no OIDC identity of
+# its own to offer, so it exchanges the shared static service-account key
+# via a hand-rolled JWT-bearer flow (openssl/jq/curl, nothing else on the
+# VM). CI does this the proper way - see .github/workflows/release-prod.yml,
+# which authenticates via Workload Identity Federation instead and has no
+# static key to manage at all.
+mint_access_token() {
+  [ -n "${GCP_SA_KEY_B64:-}" ] || return 1
 
-  local remote_url repo_path sa_key client_email private_key
-  remote_url=$(git -C "$REPO_DIR" remote get-url origin 2>/dev/null) || return 1
-  repo_path=$(echo "$remote_url" | sed -E 's#^(git@|https://)([^:/]+)[:/]##; s#\.git$##')
-  [ -n "$repo_path" ] || return 1
-
+  local sa_key client_email private_key
   sa_key=$(echo "$GCP_SA_KEY_B64" | base64 -d)
   client_email=$(echo "$sa_key" | jq -r .client_email)
   private_key=$(echo "$sa_key" | jq -r .private_key)
@@ -68,36 +67,20 @@ sync_secrets_from_bucket() {
     | base64 -w0 | tr '+/' '-_' | tr -d '=')
   jwt="${signing_input}.${signature}"
 
-  local access_token
-  access_token=$(curl -fsS -X POST "https://oauth2.googleapis.com/token" \
+  curl -fsS -X POST "https://oauth2.googleapis.com/token" \
     -d "grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer" -d "assertion=$jwt" \
-    | jq -r .access_token) || return 1
-  [ -n "$access_token" ] && [ "$access_token" != "null" ] || return 1
-
-  local prefix objects obj rel dest synced
-  prefix="${repo_path}/"
-  objects=$(curl -fsS -H "Authorization: Bearer $access_token" \
-    "https://storage.googleapis.com/storage/v1/b/${GCS_SECRETS_BUCKET}/o?prefix=$(jq -rn --arg v "$prefix" '$v|@uri')" \
-    | jq -r '.items[]?.name // empty')
-
-  synced=0
-  while IFS= read -r obj; do
-    [ -z "$obj" ] && continue
-    [[ "$obj" == */ ]] && continue   # GCS "directory marker" placeholder objects
-    rel="${obj#$prefix}"
-    dest="$REPO_DIR/$rel"
-    mkdir -p "$(dirname "$dest")"
-    curl -fsS -H "Authorization: Bearer $access_token" \
-      "https://storage.googleapis.com/storage/v1/b/${GCS_SECRETS_BUCKET}/o/$(jq -rn --arg v "$obj" '$v|@uri')?alt=media" \
-      -o "$dest"
-    echo "    synced $rel"
-    synced=$((synced + 1))
-  done <<< "$objects"
-  [ "$synced" -gt 0 ]
+    | jq -r .access_token
 }
 
 echo "==> Syncing secrets from gs://${GCS_SECRETS_BUCKET:-<unset>}/"
-sync_secrets_from_bucket || echo "    nothing synced (bucket vars unset, no git remote, or nothing staged for this repo yet)"
+if [ -n "${GCS_SECRETS_BUCKET:-}" ] && GCS_ACCESS_TOKEN=$(mint_access_token) \
+   && [ -n "$GCS_ACCESS_TOKEN" ] && [ "$GCS_ACCESS_TOKEN" != "null" ]; then
+  GCS_SECRETS_BUCKET="$GCS_SECRETS_BUCKET" GCS_ACCESS_TOKEN="$GCS_ACCESS_TOKEN" DEST_DIR="$REPO_DIR" \
+    "$REPO_DIR/scripts/sync-secrets-from-bucket.sh" \
+    || echo "    nothing synced (no git remote, or nothing staged for this repo yet)"
+else
+  echo "    nothing synced (GCP_SA_KEY_B64/GCS_SECRETS_BUCKET unset, or token exchange failed)"
+fi
 
 GS_JSON="$REPO_DIR/app/google-services.json"
 if [ ! -f "$GS_JSON" ] && [ -f "$REPO_DIR/app/build.gradle.kts" ]; then
