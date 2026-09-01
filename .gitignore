@@ -8,3 +8,10 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Secrets mirrored in by the Claude Cloud environment setup script from the
+# GCS secrets bucket - never commit these.
+app/google-services.json
+app/release.jks
+*.keystore
+app/transit-track-tracker-*.json
