@@ -32,12 +32,21 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # None of these three values are sensitive - the WIF provider path and
+      # bucket name aren't secrets (trust comes from the pool's
+      # attribute-condition, not from hiding this path), so they're
+      # hardcoded rather than pulled from repo variables. That's what makes
+      # this workflow copy-pasteable into another repo under the same
+      # GitHub user with zero GitHub UI setup: the pool trusts any repo
+      # under github.com/rodrigos01 (see the gcloud setup notes), so a new
+      # repo just needs this file + scripts/sync-secrets-from-bucket.sh and
+      # its own <owner>/<repo>/ prefix staged in the bucket.
       - id: auth
         name: Authenticate to GCP via Workload Identity Federation
         uses: google-github-actions/auth@v2
         with:
-          project_id: ${{ vars.GCP_PROJECT_ID }}
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          project_id: vola-common   # confirm this matches your GCP project
+          workload_identity_provider: projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-actions/providers/github-actions   # fill in PROJECT_NUMBER (gcloud projects describe vola-common --format='value(projectNumber)')
           token_format: access_token
 
       # Replaces the four "write secret to file" steps this workflow used to
@@ -47,7 +56,7 @@ jobs:
       # one place to rotate them instead of two.
       - name: Sync secrets from bucket
         env:
-          GCS_SECRETS_BUCKET: ${{ vars.GCS_SECRETS_BUCKET }}
+          GCS_SECRETS_BUCKET: app-build-secrets
           GCS_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
           REPO_PATH: ${{ github.repository }}
         run: ./scripts/sync-secrets-from-bucket.sh
